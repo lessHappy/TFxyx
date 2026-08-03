@@ -57,6 +57,7 @@ export class ComboManager {
 
     update(dt: number) {
         if (!this.isActive) return;
+        if (dt > 0.1) dt = 0.1;
         this.comboTimer -= dt;
         if (this.comboTimer <= 0) {
             this.comboCount = 0;

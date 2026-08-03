@@ -1,15 +1,12 @@
 import { _decorator, Component, Node, Button } from 'cc';
 import { GameManager } from '../core/GameManager';
-import { SpearZhaoYun } from '../weapon/SpearZhaoYun';
-import { SummonBaiErSoldier } from '../weapon/SummonBaiErSoldier';
+import { WeaponManager } from '../weapon/WeaponManager';
 const { ccclass, property } = _decorator;
 
 @ccclass('LevelUpSelectUI')
 export class LevelUpSelectUI extends Component {
     @property(Button) btn1: Button = null!;
     @property(Button) btn2: Button = null!;
-
-    @property(Node) weaponRoot: Node = null!;
 
     onLoad() {
         this.node.active = false;
@@ -27,14 +24,12 @@ export class LevelUpSelectUI extends Component {
     }
 
     private onBtn1Click() {
-        const spear = this.weaponRoot.getComponent(SpearZhaoYun);
-        spear?.levelUp();
+        WeaponManager.Instance.addWeapon("spear");
         this.hideUI();
     }
 
     private onBtn2Click() {
-        const summon = this.weaponRoot.getComponent(SummonBaiErSoldier);
-        summon?.levelUp();
+        WeaponManager.Instance.addWeapon("summon_bai_er");
         this.hideUI();
     }
 

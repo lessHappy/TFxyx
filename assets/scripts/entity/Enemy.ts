@@ -44,11 +44,15 @@ export class Enemy extends Component {
         const gm = GameManager.Instance;
         if (gm.battlePause || gm.gameOver) return;
 
+        if (deltaTime > 0.1) {
+            deltaTime = 0.1;
+        }
+
         const playerPos = Player.Instance.node.worldPosition;
         const selfPos = this.node.worldPosition;
-        const dist = Vec3.distance(selfPos, playerPos);
+        const distSq = Vec3.distanceSquared(selfPos, playerPos);
 
-        if (dist < 35) {
+        if (distSq < 1225) {
             this.attackCd += deltaTime;
             if (this.attackCd >= this.ATTACK_INTERVAL) {
                 Player.Instance.takeDamage(this.damage);

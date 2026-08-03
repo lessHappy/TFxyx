@@ -22,7 +22,7 @@ export class KnifeWeapon extends WeaponBase {
 
         bullet.setWorldPosition(startPos);
         const bulletComp = bullet.getComponent(BulletComp)!;
-        bulletComp.init(BulletType.KNIFE, this.getDamage(), true);
+        bulletComp.init(BulletType.KNIFE, this.getFinalDamage(), true);
 
         const targetPos = target.node.worldPosition;
         Vec3.subtract(this._dir, targetPos, startPos);
@@ -50,7 +50,7 @@ export class KnifeWeapon extends WeaponBase {
                 bulletComp.recycleSelf();
             }
         };
-        bullet.schedule(tickFunc, 0);
+        bullet.schedule(tickFunc, 0.016);
 
         GameManager.Instance.registerBullet(bullet, bulletComp);
     }

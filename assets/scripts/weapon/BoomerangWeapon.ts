@@ -21,7 +21,7 @@ export class BoomerangWeapon extends WeaponBase {
 
         bullet.setWorldPosition(startPos);
         const bulletComp = bullet.getComponent(BulletComp)!;
-        bulletComp.init(BulletType.BOOMERANG, this.getDamage(), true);
+        bulletComp.init(BulletType.BOOMERANG, this.getFinalDamage(), true);
 
         GameManager.Instance.registerBullet(bullet, bulletComp);
 
@@ -55,6 +55,6 @@ export class BoomerangWeapon extends WeaponBase {
                 startPos.z + nz * curDist
             );
         };
-        bullet.schedule(tickFunc, 0);
+        bullet.schedule(tickFunc, 0.016);
     }
 }

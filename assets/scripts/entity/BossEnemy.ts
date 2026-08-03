@@ -1,6 +1,7 @@
-import { _decorator, Component, Vec3, Color, Sprite, math } from 'cc';
+import { _decorator, Vec3, Color, Sprite, math } from 'cc';
 import { Enemy } from './Enemy';
 import { GameManager } from '../core/GameManager';
+import { EventManager } from '../core/EventManager';
 import { EnemyPoolManager } from '../core/EnemyPoolManager';
 import { ObjectPool } from '../core/ObjectPool';
 import { ExpDrop } from './ExpDrop';
@@ -31,15 +32,23 @@ export class BossEnemy extends Enemy {
         this.goldReward = BOSS_CONFIG.goldReward;
         this.chargeTimer = 0;
         this.isCharging = false;
+        this._attackCd = 0;
         if (this.bossSprite) {
             this.bossSprite.color = this._normalColor;
         }
     }
 
     private _reuseDir: Vec3 = new Vec3();
+    private _attackCd: number = 0;
+    private readonly ATTACK_INTERVAL: number = 1.0;
+    private readonly ATTACK_RANGE_SQ: number = 70 * 70;
 
     update(deltaTime: number) {
         if (this.isDead || !GameManager.Instance || GameManager.Instance.battlePause) return;
+
+        if (deltaTime > 0.1) {
+            deltaTime = 0.1;
+        }
 
         if (this.isCharging) {
             const pos = this.node.position;
@@ -60,17 +69,30 @@ export class BossEnemy extends Enemy {
             this.startCharge();
         }
 
-        const playerPos = GameManager.Instance.player.node.worldPosition;
-        Vec3.subtract(this._reuseDir, playerPos, this.node.worldPosition);
+        const player = GameManager.Instance.player;
+        if (!player) return;
+        const playerPos = player.node.worldPosition;
+        const selfPos = this.node.worldPosition;
+        Vec3.subtract(this._reuseDir, playerPos, selfPos);
         this._reuseDir.z = 0;
-        const len = this._reuseDir.length();
-        if (len > 0.1) {
-            this._reuseDir.normalize();
+        const lenSq = this._reuseDir.x * this._reuseDir.x + this._reuseDir.y * this._reuseDir.y;
+        if (lenSq > 0.01) {
+            const invLen = 1 / Math.sqrt(lenSq);
+            this._reuseDir.x *= invLen;
+            this._reuseDir.y *= invLen;
             this.node.setPosition(
-                this.node.position.x + this._reuseDir.x * this.speed * deltaTime,
-                this.node.position.y + this._reuseDir.y * this.speed * deltaTime,
-                this.node.position.z
+                selfPos.x + this._reuseDir.x * this.speed * deltaTime,
+                selfPos.y + this._reuseDir.y * this.speed * deltaTime,
+                selfPos.z
             );
+
+            if (lenSq < this.ATTACK_RANGE_SQ) {
+                this._attackCd += deltaTime;
+                if (this._attackCd >= this.ATTACK_INTERVAL) {
+                    player.takeDamage(this.damage);
+                    this._attackCd = 0;
+                }
+            }
         }
     }
 
@@ -88,8 +110,14 @@ export class BossEnemy extends Enemy {
         }
     }
 
+    takeDamage(damage: number) {
+        super.takeDamage(damage);
+        EventManager.Instance.emit("BOSS_HP_UPDATE", this.hp, this.maxHp);
+    }
+
     onDead() {
         this.isDead = true;
+        EventManager.Instance.emit("BOSS_DEAD");
         if (!GameManager.Instance) return;
         const gm = GameManager.Instance;
 

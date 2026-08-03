@@ -1,4 +1,4 @@
-import { _decorator, Component, Label, Vec3, tween, UIOpacity } from 'cc';
+import { _decorator, Component, Label, Vec3, tween, UIOpacity, Color } from 'cc';
 import { ObjectPool } from '../core/ObjectPool';
 const { ccclass, property } = _decorator;
 
@@ -6,8 +6,11 @@ const { ccclass, property } = _decorator;
 export class DamageNumber extends Component {
     @property(Label) label: Label = null!;
 
-    private _worldPos: Vec3 = new Vec3();
     private _uiOpacity: UIOpacity | null = null;
+    private _tweenPos: Vec3 = new Vec3();
+
+    private static _critColor: Color = new Color(255, 200, 50, 255);
+    private static _normalColor: Color = new Color(255, 255, 255, 255);
 
     onLoad() {
         this._uiOpacity = this.node.getComponent(UIOpacity);
@@ -15,9 +18,7 @@ export class DamageNumber extends Component {
 
     show(value: number, worldPos: Vec3, isCrit: boolean = false) {
         this.label.string = isCrit ? `${Math.floor(value)}!` : `${Math.floor(value)}`;
-        this.label.color = isCrit
-            ? new (this.label.color.constructor as any)(255, 200, 50, 255)
-            : new (this.label.color.constructor as any)(255, 255, 255, 255);
+        this.label.color = isCrit ? DamageNumber._critColor : DamageNumber._normalColor;
 
         this.node.setWorldPosition(worldPos.x, worldPos.y + 30, worldPos.z);
 
@@ -25,8 +26,9 @@ export class DamageNumber extends Component {
         this.node.active = true;
 
         const startY = this.node.position.y;
+        this._tweenPos.set(this.node.position.x, startY + 50, 0);
         tween(this.node)
-            .to(0.6, { position: new Vec3(this.node.position.x, startY + 50, 0) })
+            .to(0.6, { position: this._tweenPos })
             .call(() => {
                 this.node.active = false;
                 ObjectPool.put("dmg_number", this.node);

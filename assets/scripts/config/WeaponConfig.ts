@@ -65,6 +65,19 @@ export const WEAPON_CONFIG: Record<string, WeaponConfigData> = {
         maxLevel: 10,
         damageAddPerLv: 2,
         intervalReducePerLv: 0.03
+    },
+    summon_bai_er: {
+        id: "summon_bai_er",
+        name: "百二士兵",
+        desc: "召唤百二士兵环绕助战，自动攻击附近敌人",
+        unlockLv: 8,
+        baseDamage: 10,
+        attackInterval: 0.5,
+        range: 200,
+        projectileSpeed: 0,
+        maxLevel: 8,
+        damageAddPerLv: 3,
+        intervalReducePerLv: 0.02
     }
 };
 

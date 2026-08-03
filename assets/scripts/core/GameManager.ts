@@ -11,9 +11,22 @@ import { EventManager, GameEvent } from './EventManager';
 import { ComboManager } from './ComboManager';
 import { ObjectPool } from './ObjectPool';
 import { StorageUtil } from './StorageUtil';
+import { TalentManager } from './TalentManager';
+import { TalentType } from '../config/TalentConfig';
 import { BOSS_CONFIG, DOUBLE_BUFF_CONFIG } from '../config/GameConfig';
 import { DamageNumber } from '../entity/DamageNumber';
+import { AudioManager, BGM_PATH } from './AudioManager';
+import { VibrateManager } from './VibrateManager';
+import { TutorialManager } from './TutorialManager';
+import { TutorialStep } from '../config/TutorialConfig';
+import { ExpDrop } from '../entity/ExpDrop';
+import { AchievementManager } from './AchievementManager';
+import { ACHIEVEMENT_STORAGE_KEYS } from '../config/AchievementConfig';
+import { DailyTaskManager } from './DailyTaskManager';
+import { TaskType } from '../config/DailyTaskConfig';
 const { ccclass, property } = _decorator;
+
+const MAX_DELTA_TIME = 0.1;
 
 @ccclass('GameManager')
 export class GameManager {
@@ -86,6 +99,14 @@ export class GameManager {
         ComboManager.Instance.reset();
         this.bossTimer = BOSS_CONFIG.spawnInterval;
         this.bossAlive = false;
+
+        AudioManager.Instance.crossFadeBgm(BGM_PATH.BATTLE_NORMAL, true, 1.0);
+
+        TutorialManager.Instance.load();
+        if (!TutorialManager.Instance.isTutorialDone()) {
+            TutorialManager.Instance.startTutorial();
+            TutorialManager.Instance.jumpToStep(TutorialStep.MOVE);
+        }
     }
 
     initBulletPool() {
@@ -99,16 +120,48 @@ export class GameManager {
     registerGameEvent() {
         EventManager.Instance.on(GameEvent.PLAYER_LEVEL_UP, this.onPlayerLevelUp, this);
         EventManager.Instance.on(GameEvent.PLAYER_DEAD, this.onPlayerDead, this);
+        EventManager.Instance.on("BOSS_DEAD", this.onBossDead, this);
+        EventManager.Instance.on("FIRST_EXP_PICKUP", this.onFirstExpPickup, this);
+    }
+
+    onFirstExpPickup() {
+        TutorialManager.Instance.completeStep(TutorialStep.KILL_ENEMY);
+        TutorialManager.Instance.jumpToStep(TutorialStep.PICK_EXP);
     }
 
     onPlayerLevelUp() {
         this.battlePause = true;
         this.weaponSelectUI.showSelectPanel();
+        DailyTaskManager.Instance.addProgress(TaskType.LEVEL_UP, 1);
+        TutorialManager.Instance.completeStep(TutorialStep.PICK_EXP);
+        TutorialManager.Instance.jumpToStep(TutorialStep.SELECT_WEAPON);
+
+        if (this.player && this.player.level >= 3) {
+            TutorialManager.Instance.jumpToStep(TutorialStep.DASH);
+        }
     }
 
     onPlayerDead() {
         this.battlePause = true;
         this.gameOver = true;
+        AudioManager.Instance.crossFadeBgm(BGM_PATH.GAME_OVER, false, 0.8);
+    }
+
+    onBossDead() {
+        AchievementManager.Instance.addStat(ACHIEVEMENT_STORAGE_KEYS.TOTAL_BOSS, 1);
+        DailyTaskManager.Instance.addProgress(TaskType.KILL_BOSS, 1);
+        if (!this.gameOver) {
+            AudioManager.Instance.crossFadeBgm(BGM_PATH.BATTLE_NORMAL, true, 0.6);
+        }
+    }
+
+    onPlayerRevive() {
+        if (!this.player) return;
+        this.battlePause = false;
+        this.gameOver = false;
+        this.player.hp = this.player.maxHp;
+        this.player.clearHurtState();
+        AudioManager.Instance.crossFadeBgm(BGM_PATH.BATTLE_NORMAL, true, 0.5);
     }
 
     onEnemyDead(enemy: Enemy) {
@@ -118,13 +171,30 @@ export class GameManager {
         }
         this.totalKillCount += 1;
 
-        // 连杀计数
+        // 每日任务进度
+        DailyTaskManager.Instance.addProgress(TaskType.KILL_ENEMY, 1);
+
+        if (this.totalKillCount === 1) {
+            TutorialManager.Instance.completeStep(TutorialStep.MOVE);
+            TutorialManager.Instance.jumpToStep(TutorialStep.KILL_ENEMY);
+        }
+
+        // 关羽击杀Buff
+        if (this.player) {
+            this.player.onKill();
+        }
+
         const comboBonus = ComboManager.Instance.onKill();
         if (comboBonus > 0 && enemy.expReward > 0) {
             const bonusExp = Math.floor(enemy.expReward * comboBonus);
             if (this.player) {
                 this.player.addExp(bonusExp);
             }
+        }
+
+        // 连杀上报（仅上报连杀事件）
+        if (ComboManager.Instance.comboCount >= 5) {
+            DailyTaskManager.Instance.addProgress(TaskType.COMBO, 1);
         }
     }
 
@@ -139,10 +209,13 @@ export class GameManager {
     }
 
     addGold(amount: number) {
-        const finalAmount = this.hasDoubleBuff
+        const goldTalentBonus = TalentManager.Instance.getEffectPercent(TalentType.GOLD_GAIN);
+        let finalAmount = this.hasDoubleBuff
             ? amount * DOUBLE_BUFF_CONFIG.goldMultiplier
             : amount;
+        finalAmount = Math.floor(finalAmount * goldTalentBonus);
         this.totalGold += finalAmount;
+        DailyTaskManager.Instance.addProgress(TaskType.COLLECT_GOLD, finalAmount);
     }
 
     // 获取双倍Buff后的经验值
@@ -176,12 +249,19 @@ export class GameManager {
         }
 
         this.bossAlive = true;
-        // Boss 出场提示
         EventManager.Instance.emit("BOSS_SPAWN");
+        AudioManager.Instance.crossFadeBgm(BGM_PATH.BATTLE_BOSS, true, 0.6);
+        VibrateManager.Instance.long();
+        TutorialManager.Instance.jumpToStep(TutorialStep.BOSS_WARNING);
     }
 
     update(deltaTime: number) {
         if (this.battlePause || this.gameOver) return;
+
+        if (deltaTime > MAX_DELTA_TIME) {
+            deltaTime = MAX_DELTA_TIME;
+        }
+
         this.battleTime += deltaTime;
 
         // 连杀计时器
@@ -203,7 +283,10 @@ export class GameManager {
         const rangeSq = range * range;
         let target: Enemy | null = null;
 
-        for (const enemy of this.enemyList) {
+        const list = this.enemyList;
+        const len = list.length;
+        for (let i = 0; i < len; i++) {
+            const enemy = list[i];
             if (!enemy.node.active) continue;
             const distSq = Vec3.distanceSquared(origin, enemy.node.worldPosition);
             if (distSq < rangeSq && distSq < minDistSq) {
@@ -216,7 +299,10 @@ export class GameManager {
 
     createAoeDamage(center: Vec3, radius: number, damage: number) {
         const radiusSq = radius * radius;
-        for (const enemy of this.enemyList) {
+        const list = this.enemyList;
+        const len = list.length;
+        for (let i = 0; i < len; i++) {
+            const enemy = list[i];
             if (!enemy.node.active) continue;
             const distSq = Vec3.distanceSquared(center, enemy.node.worldPosition);
             if (distSq <= radiusSq) {
@@ -229,7 +315,10 @@ export class GameManager {
     getEnemyInRange(center: Vec3, radius: number): Enemy[] {
         this._enemyRangeResult.length = 0;
         const radiusSq = radius * radius;
-        for (const enemy of this.enemyList) {
+        const list = this.enemyList;
+        const len = list.length;
+        for (let i = 0; i < len; i++) {
+            const enemy = list[i];
             if (!enemy.node.active) continue;
             const distSq = Vec3.distanceSquared(center, enemy.node.worldPosition);
             if (distSq <= radiusSq) {
@@ -243,7 +332,29 @@ export class GameManager {
         // 预留2D碰撞逻辑入口
     }
 
+    private recordAchievementStats() {
+        const ach = AchievementManager.Instance;
+        ach.load();
+
+        ach.addStat(ACHIEVEMENT_STORAGE_KEYS.TOTAL_KILL, this.totalKillCount);
+        ach.addStat(ACHIEVEMENT_STORAGE_KEYS.TOTAL_GOLD, this.totalGold);
+        ach.updateStat(ACHIEVEMENT_STORAGE_KEYS.MAX_SINGLE_KILL, this.totalKillCount);
+        ach.updateStat(ACHIEVEMENT_STORAGE_KEYS.MAX_SURVIVE, Math.floor(this.battleTime));
+
+        const playerLevel = this.player ? this.player.level : 0;
+        ach.updateStat(ACHIEVEMENT_STORAGE_KEYS.MAX_LEVEL, playerLevel);
+
+        const maxCombo = ComboManager.Instance ? ComboManager.Instance.maxComboCount : 0;
+        ach.updateStat(ACHIEVEMENT_STORAGE_KEYS.MAX_COMBO, maxCombo);
+    }
+
     battleOver() {
+        this.recordAchievementStats();
+
+        // 每日任务进度
+        DailyTaskManager.Instance.addProgress(TaskType.PLAY_GAME, 1);
+        DailyTaskManager.Instance.addProgress(TaskType.SURVIVE_TIME, Math.floor(this.battleTime));
+
         if (this.dropContainer) {
             this.dropContainer.removeAllChildren();
         }
@@ -262,6 +373,11 @@ export class GameManager {
         ComboManager.Instance.reset();
         EventManager.Instance.off(GameEvent.PLAYER_LEVEL_UP, this.onPlayerLevelUp, this);
         EventManager.Instance.off(GameEvent.PLAYER_DEAD, this.onPlayerDead, this);
+        EventManager.Instance.off("PLAYER_REVIVE", this.onPlayerRevive, this);
+        EventManager.Instance.off("BOSS_DEAD", this.onBossDead, this);
+        EventManager.Instance.off("FIRST_EXP_PICKUP", this.onFirstExpPickup, this);
+        AudioManager.Instance.stopBgm();
+        ExpDrop.resetFirstPick();
     }
 
     onDestroy() {

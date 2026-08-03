@@ -3,8 +3,8 @@ import { StorageUtil } from '../core/StorageUtil';
 import { MainMenu } from './MainMenu';
 const { ccclass, property } = _decorator;
 
-// 修改为你的公众号隐私政策链接
-const PRIVACY_URL = "https://替换你的隐私政策链接";
+// TODO: 替换为你的公众号隐私政策文章链接
+const PRIVACY_URL = "https://mp.weixin.qq.com/s/你的隐私政策文章链接";
 
 @ccclass('PrivacyPanel')
 export class PrivacyPanel extends Component {

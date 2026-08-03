@@ -11,6 +11,7 @@ export class MinionSoldier extends Component {
     private readonly ATTACK_INTERVAL = 0.8;
     private readonly SEARCH_RANGE = 180;
     private readonly ATTACK_RANGE = 50;
+    private readonly ATTACK_RANGE_SQ = 2500;
 
     init(dmg: number) {
         this.damage = dmg;
@@ -35,8 +36,8 @@ export class MinionSoldier extends Component {
         this.attackCd += delta;
         if (this.attackCd < this.ATTACK_INTERVAL) return;
 
-        const dist = Vec3.distance(this.node.worldPosition, this.attackTarget.node.worldPosition);
-        if (dist < this.ATTACK_RANGE) {
+        const distSq = Vec3.distanceSquared(this.node.worldPosition, this.attackTarget.node.worldPosition);
+        if (distSq < this.ATTACK_RANGE_SQ) {
             this.attackTarget.takeDamage(this.damage);
             this.attackCd = 0;
         }

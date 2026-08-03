@@ -24,7 +24,7 @@ export class FireBallWeapon extends WeaponBase {
 
         bullet.setWorldPosition(startPos);
         const bulletComp = bullet.getComponent(BulletComp)!;
-        bulletComp.init(BulletType.FIREBALL, this.getDamage(), false, this.explosionRadius);
+        bulletComp.init(BulletType.FIREBALL, this.getFinalDamage(), false, this.explosionRadius);
 
         const targetPos = target.node.worldPosition;
         Vec3.subtract(this._dir, targetPos, startPos);
@@ -52,7 +52,7 @@ export class FireBallWeapon extends WeaponBase {
                 bulletComp.triggerAoeExplosion();
             }
         };
-        bullet.schedule(tickFunc, 0);
+        bullet.schedule(tickFunc, 0.016);
 
         GameManager.Instance.registerBullet(bullet, bulletComp);
     }

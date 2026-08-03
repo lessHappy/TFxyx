@@ -1,4 +1,4 @@
-import { _decorator, Component, Vec3, randomRange } from 'cc';
+import { _decorator, Component, Vec3, math } from 'cc';
 import { GameManager } from '../core/GameManager';
 import { Enemy } from '../entity/Enemy';
 import { EnemyPoolManager, EnemyType } from '../core/EnemyPoolManager';
@@ -22,23 +22,22 @@ export class EnemySpawner extends Component {
         );
         this.spawnTimer += deltaTime;
         if (this.spawnTimer >= dynamicInterval) {
+            this.spawnTimer -= dynamicInterval;
             this.spawnEnemy();
-            this.spawnTimer = 0;
         }
     }
 
     spawnEnemy() {
         const gm = GameManager.Instance!;
         const playerPos = Player.Instance!.node.worldPosition;
-        const angle = randomRange(0, Math.PI * 2);
-        const dist = randomRange(320, 450);
+        const angle = math.randomRange(0, Math.PI * 2);
+        const dist = math.randomRange(320, 450);
         this._spawnPos.set(
             playerPos.x + Math.cos(angle) * dist,
             playerPos.y + Math.sin(angle) * dist,
             0
         );
 
-        // 动态权重：难度越高，精英怪占比越大
         const scale = gm.difficultyScale;
         const tankWeight = Math.min(0.4, SPAWN_CONFIG.tankWeightBase + SPAWN_CONFIG.tankWeightPerScale * (scale - 1) * 10);
         const fastWeight = Math.min(0.4, SPAWN_CONFIG.fastWeightBase + SPAWN_CONFIG.fastWeightPerScale * (scale - 1) * 10);

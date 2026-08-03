@@ -1,9 +1,10 @@
 import { _decorator, Component, Node, Button, Label, instantiate } from 'cc';
 import { WEAPON_CONFIG } from '../config/WeaponConfig';
-import { WeaponManager } from '../weapon/WeaponManager';
 import { GameManager } from '../core/GameManager';
-import { Player } from '../entity/Player';
+import { WeaponManager } from '../weapon/WeaponManager';
 import { AudioManager } from '../core/AudioManager';
+import { TutorialManager } from '../core/TutorialManager';
+import { TutorialStep } from '../config/TutorialConfig';
 const { ccclass, property } = _decorator;
 
 interface SelectItemData {
@@ -123,5 +124,6 @@ export class WeaponSelectUI extends Component {
         WeaponManager.Instance.addWeapon(weaponId);
         this.node.active = false;
         GameManager.Instance!.battlePause = false;
+        TutorialManager.Instance.completeStep(TutorialStep.SELECT_WEAPON);
     }
 }

@@ -25,7 +25,7 @@ export class SummonBaiErSoldier extends WeaponBase {
         if (!soldier) return;
         soldier.setParent(this.node);
         const comp = soldier.getComponent(MinionSoldier);
-        if (comp) comp.init(this.getDamage());
+        if (comp) comp.init(this.getFinalDamage());
         this.soldierList.push(soldier);
     }
 

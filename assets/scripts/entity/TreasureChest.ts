@@ -46,6 +46,9 @@ export class TreasureChest extends Component {
         }
     }
 
+    private static _scaleUp: Vec3 = new Vec3(1.3, 1.3, 1);
+    private static _scaleDown: Vec3 = new Vec3(0, 0, 1);
+
     private openChest() {
         this.isOpened = true;
         if (GameManager.Instance) {
@@ -53,8 +56,8 @@ export class TreasureChest extends Component {
         }
         if (this.chestSprite) {
             tween(this.chestSprite.node)
-                .to(0.2, { scale: new (this.chestSprite.node.scale.constructor as any)(1.3, 1.3, 1) })
-                .to(0.2, { scale: new (this.chestSprite.node.scale.constructor as any)(0, 0, 1) })
+                .to(0.2, { scale: TreasureChest._scaleUp })
+                .to(0.2, { scale: TreasureChest._scaleDown })
                 .call(() => {
                     this.node.active = false;
                     ObjectPool.put("chest", this.node);

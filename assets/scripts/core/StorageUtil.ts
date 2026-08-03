@@ -84,4 +84,31 @@ export class StorageUtil {
             console.warn(`StorageUtil.remove failed: ${key}`, e);
         }
     }
+
+    static getRaw(key: string): any {
+        try {
+            const wx = this.getWx();
+            if (wx) {
+                const val = wx.getStorageSync(key);
+                if (val === "" || val === null || val === undefined) return null;
+                try {
+                    return JSON.parse(val);
+                } catch {
+                    return val;
+                }
+            } else {
+                const val = localStorage.getItem(key);
+                if (val === null) return null;
+                try {
+                    return JSON.parse(val);
+                } catch {
+                    const num = Number(val);
+                    return isNaN(num) ? val : num;
+                }
+            }
+        } catch (e) {
+            console.warn(`StorageUtil.getRaw failed: ${key}`, e);
+            return null;
+        }
+    }
 }

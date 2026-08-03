@@ -55,7 +55,7 @@ export class SpearZhaoYun extends WeaponBase {
         for (const enemy of enemyList) {
             if (this.hitEnemySet.has(enemy)) continue;
             if (hitNum >= this.pierceCount) break;
-            enemy.takeDamage(this.getDamage());
+            enemy.takeDamage(this.getFinalDamage());
             this.hitEnemySet.add(enemy);
             hitNum++;
         }

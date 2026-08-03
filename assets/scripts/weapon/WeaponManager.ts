@@ -2,6 +2,8 @@ import { _decorator, Node, instantiate } from 'cc';
 import { WeaponBase } from './WeaponBase';
 import { WEAPON_CONFIG } from '../config/WeaponConfig';
 import { Player } from '../entity/Player';
+import { AchievementManager } from '../core/AchievementManager';
+import { ACHIEVEMENT_STORAGE_KEYS } from '../config/AchievementConfig';
 const { ccclass, property } = _decorator;
 
 @ccclass("WeaponManager")
@@ -16,6 +18,7 @@ export class WeaponManager {
     @property({ type: Node }) fireBallPrefab!: Node;
     @property({ type: Node }) boomerangPrefab!: Node;
     @property({ type: Node }) spearPrefab!: Node;
+    @property({ type: Node }) summonBaiErPrefab!: Node;
 
     // 当前携带武器列表
     private equipWeaponList: WeaponBase[] = [];
@@ -45,6 +48,7 @@ export class WeaponManager {
             case "knife": prefab = this.knifePrefab; break;
             case "fireball": prefab = this.fireBallPrefab; break;
             case "boomerang": prefab = this.boomerangPrefab; break;
+            case "summon_bai_er": prefab = this.summonBaiErPrefab; break;
         }
         if (!prefab) return false;
 
@@ -57,6 +61,8 @@ export class WeaponManager {
         }
         weaponComp.init(this.player, weaponId, 1);
         this.equipWeaponList.push(weaponComp);
+
+        AchievementManager.Instance.addStat(ACHIEVEMENT_STORAGE_KEYS.TOTAL_WEAPON, 1);
         return true;
     }
 

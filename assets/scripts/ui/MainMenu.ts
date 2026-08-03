@@ -1,8 +1,42 @@
 import { _decorator, Component, Node, Button, Label, director } from 'cc';
 import { WxAdHelper } from '../core/WxAdHelper';
+import { AdRewardType } from '../config/AdConfig';
 import { StorageUtil } from '../core/StorageUtil';
 import { PrivacyPanel } from './PrivacyPanel';
 import { OfflineIncome } from '../utils/OfflineIncome';
+import { OfflineRewardUI } from './OfflineRewardUI';
+import { WeaponBookUI } from './WeaponBookUI';
+import { RankUI } from './RankUI';
+import { TalentUI } from './TalentUI';
+import { TalentManager } from '../core/TalentManager';
+import { HeroUI } from './HeroUI';
+import { HeroManager } from '../core/HeroManager';
+import { SettingsUI } from './SettingsUI';
+import { ShareUI } from './ShareUI';
+import { ShareManager } from '../core/ShareManager';
+import { ShareType } from '../config/ShareConfig';
+import { StageAnnounceManager } from '../core/StageAnnounceManager';
+import { StageAnnounceUI } from './StageAnnounceUI';
+import { LoadingUI } from './LoadingUI';
+import { SignInManager } from '../core/SignInManager';
+import { SignInUI } from './SignInUI';
+import { AchievementManager } from '../core/AchievementManager';
+import { AchievementUI } from './AchievementUI';
+import { OpenDataManager } from '../core/OpenDataManager';
+import { OpenDataRankUI } from './OpenDataRankUI';
+import { CloudSaveManager } from '../core/CloudSaveManager';
+import { CloudSaveUI } from './CloudSaveUI';
+import { RedeemManager } from '../core/RedeemManager';
+import { RedeemUI } from './RedeemUI';
+import { AudioManager, BGM_PATH } from '../core/AudioManager';
+import { UpdateManager } from '../core/UpdateManager';
+import { VibrateManager } from '../core/VibrateManager';
+import { DailyTaskManager } from '../core/DailyTaskManager';
+import { TaskType } from '../config/DailyTaskConfig';
+import { DailyTaskUI } from './DailyTaskUI';
+import { WeChatManager } from '../core/WeChatManager';
+import { RedDotManager, RedDotType, RED_DOT_EVENT } from '../core/RedDotManager';
+import { EventManager } from '../core/EventManager';
 const { ccclass, property } = _decorator;
 
 export const STORAGE_KEY = {
@@ -15,19 +49,47 @@ export const STORAGE_KEY = {
 export class MainMenu extends Component {
     @property(Label) labGold: Label = null!;
     @property(Button) btnStartGame: Button = null!;
-    @property(Button) btnHero: Button = null!;
+    @property(Button) btnBook: Button = null!;
+    @property(Button) btnRank: Button = null!;
     @property(Button) btnTalent: Button = null!;
+    @property(Button) btnHero: Button = null!;
+    @property(Button) btnSetting: Button = null!;
+    @property(Button) btnShare: Button = null!;
+    @property(Button) btnSignIn: Button = null!;
+    @property(Button) btnAchievement: Button = null!;
+    @property(Button) btnRedeem: Button = null!;
     @property(Button) btnWatchAdBuff: Button = null!;
     @property(Button) btnShareRevive: Button = null!;
+    @property(Button) btnDailyTask: Button = null!;
 
-    @property(Node) panelHero: Node = null!;
-    @property(Node) panelTalent: Node = null!;
     @property(Node) privacyPanelNode: Node = null!;
+    @property(OfflineRewardUI) offlineRewardUI: OfflineRewardUI = null!;
+    @property(WeaponBookUI) weaponBookUI: WeaponBookUI = null!;
+    @property(RankUI) rankUI: RankUI = null!;
+    @property(TalentUI) talentUI: TalentUI = null!;
+    @property(HeroUI) heroUI: HeroUI = null!;
+    @property(SettingsUI) settingsUI: SettingsUI = null!;
+    @property(ShareUI) shareUI: ShareUI = null!;
+    @property(StageAnnounceUI) stageAnnounceUI: StageAnnounceUI = null!;
+    @property(SignInUI) signInUI: SignInUI = null!;
+    @property(AchievementUI) achievementUI: AchievementUI = null!;
+    @property(OpenDataRankUI) openDataRankUI: OpenDataRankUI = null!;
+    @property(CloudSaveUI) cloudSaveUI: CloudSaveUI = null!;
+    @property(RedeemUI) redeemUI: RedeemUI = null!;
+    @property(DailyTaskUI) dailyTaskUI: DailyTaskUI = null!;
+
+    @property(Node) redDotAchievement: Node = null!;
+    @property(Node) redDotSignIn: Node = null!;
+    @property(Node) redDotTalent: Node = null!;
+    @property(Node) redDotHero: Node = null!;
+    @property(Node) redDotDailyTask: Node = null!;
+    @property(Node) redDotShare: Node = null!;
 
     private privacyPanel: PrivacyPanel | null = null;
     private isPrivacyAgree: boolean = false;
     private goldNum: number = 0;
     private hasDoubleBuff: boolean = false;
+    private _isFirstLoad: boolean = true;
 
     onLoad() {
         OfflineIncome.saveExitTime();
@@ -41,6 +103,58 @@ export class MainMenu extends Component {
 
         this.initUI();
         this.registerButtonEvent();
+
+        WxAdHelper.init();
+        WeChatManager.Instance.init();
+        TalentManager.Instance.load();
+        HeroManager.Instance.load();
+        DailyTaskManager.Instance.load();
+        OpenDataManager.Instance.init();
+        CloudSaveManager.Instance.init();
+        CloudSaveManager.Instance.startAutoSave();
+        UpdateManager.Instance.checkUpdate();
+        VibrateManager.Instance.init();
+        this.initRedDots();
+        this.registerRedDotEvent();
+        if (this.talentUI) {
+            this.talentUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+        }
+        if (this.heroUI) {
+            this.heroUI.init({ onHeroChanged: (heroType) => this.onHeroChanged(heroType) });
+        }
+        if (this.shareUI) {
+            this.shareUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+        }
+        if (this.stageAnnounceUI) {
+            this.stageAnnounceUI.init(() => this.enterBattleScene());
+        }
+        if (this.signInUI) {
+            this.signInUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+        }
+        if (this.achievementUI) {
+            this.achievementUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+        }
+        if (this.redeemUI) {
+            this.redeemUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+        }
+        if (this.dailyTaskUI) {
+            this.dailyTaskUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+        }
+        AudioManager.Instance.playBgm(BGM_PATH.MAIN, true, 0.5);
+    }
+
+    onEnable() {
+        if (this._isFirstLoad) {
+            this._isFirstLoad = false;
+            return;
+        }
+        this.refreshGold();
+        this.refreshRedDots();
+        this.tryShowOfflineReward();
+    }
+
+    onDestroy() {
+        WxAdHelper.destroy();
     }
 
     checkPrivacyStatus() {
@@ -52,43 +166,100 @@ export class MainMenu extends Component {
 
     setPrivacyAgreeState(flag: boolean) {
         this.isPrivacyAgree = flag;
+        if (flag) {
+            this.tryShowOfflineReward();
+            this.tryShowSignIn();
+        }
     }
 
     initUI() {
-        this.goldNum = StorageUtil.getNumber(STORAGE_KEY.GOLD, 1200);
+        this.refreshGold();
         this.hasDoubleBuff = StorageUtil.getBool(STORAGE_KEY.DOUBLE_BUFF, false);
-        this.labGold.string = `${this.goldNum}`;
+        if (this.btnWatchAdBuff) {
+            if (this.hasDoubleBuff) {
+                this.btnWatchAdBuff.interactable = false;
+            }
+        }
+    }
 
-        if (this.hasDoubleBuff) {
-            this.btnWatchAdBuff.interactable = false;
+    refreshGold() {
+        this.goldNum = StorageUtil.getNumber(STORAGE_KEY.GOLD, 1200);
+        this.labGold.string = `${this.goldNum}`;
+    }
+
+    onHeroChanged() {
+        this.refreshGold();
+    }
+
+    tryShowOfflineReward() {
+        if (this.offlineRewardUI) {
+            this.offlineRewardUI.tryShowPanel();
+        }
+    }
+
+    tryShowSignIn() {
+        SignInManager.Instance.load();
+        if (SignInManager.Instance.canClaim() && this.signInUI) {
+            DailyTaskManager.Instance.addProgress(TaskType.SIGN_IN, 1);
+            this.scheduleOnce(() => {
+                this.signInUI?.show();
+            }, 0.8);
         }
     }
 
     registerButtonEvent() {
         this.btnStartGame.node.on(Button.Event.CLICK, async () => {
-            await this.enterBattleScene();
+            if (this.stageAnnounceUI) {
+                this.stageAnnounceUI.show();
+            } else {
+                await this.enterBattleScene();
+            }
         });
-        this.btnHero.node.on(Button.Event.CLICK, () => this.panelHero.active = true);
-        this.btnTalent.node.on(Button.Event.CLICK, () => this.panelTalent.active = true);
+        if (this.btnBook) {
+            this.btnBook.node.on(Button.Event.CLICK, () => this.weaponBookUI?.show());
+        }
+        if (this.btnRank) {
+            this.btnRank.node.on(Button.Event.CLICK, () => this.rankUI?.show());
+        }
+        if (this.btnTalent) {
+            this.btnTalent.node.on(Button.Event.CLICK, () => this.talentUI?.show());
+        }
+        if (this.btnHero) {
+            this.btnHero.node.on(Button.Event.CLICK, () => this.heroUI?.show());
+        }
+        if (this.btnSetting) {
+            this.btnSetting.node.on(Button.Event.CLICK, () => this.settingsUI?.show());
+        }
+        if (this.btnShare) {
+            this.btnShare.node.on(Button.Event.CLICK, () => this.shareUI?.show());
+        }
+        if (this.btnSignIn) {
+            this.btnSignIn.node.on(Button.Event.CLICK, () => this.signInUI?.show());
+        }
+        if (this.btnAchievement) {
+            this.btnAchievement.node.on(Button.Event.CLICK, () => this.achievementUI?.show());
+        }
+        if (this.btnRedeem) {
+            this.btnRedeem.node.on(Button.Event.CLICK, () => this.redeemUI?.show());
+        }
+        if (this.btnDailyTask) {
+            this.btnDailyTask.node.on(Button.Event.CLICK, () => this.dailyTaskUI?.show());
+        }
         this.btnWatchAdBuff.node.on(Button.Event.CLICK, () => this.onWatchAdBuff());
         this.btnShareRevive.node.on(Button.Event.CLICK, () => this.onShareGetRevive());
     }
 
     async enterBattleScene() {
-        // 将双倍Buff状态传递给战斗场景
         const hasDoubleBuff = StorageUtil.getBool(STORAGE_KEY.DOUBLE_BUFF, false);
         StorageUtil.setBool("sgzy_battle_double_buff", hasDoubleBuff);
 
+        AudioManager.Instance.playSfx("audio/sfx/select");
+        AudioManager.Instance.fadeOutBgm(0.5);
+
         const wx = (window as any).wx;
-        try {
-            if (wx) {
-                await director.loadSubpackage('battle_sub');
-            }
-            director.loadScene("Battle");
-        } catch (err) {
-            console.error("分包加载失败", err);
-            if (wx) wx.showToast({ title: "资源加载失败，请重启小游戏" });
-        }
+        const subPackage = wx ? "battle_sub" : undefined;
+
+        await LoadingUI.loadSceneWithLoading("Battle", subPackage, "厉兵秣马，准备出征...");
     }
 
     onWatchAdBuff() {
@@ -97,10 +268,12 @@ export class MainMenu extends Component {
             if (wx) wx.showToast({ title: "请先同意隐私政策" });
             return;
         }
-        WxAdHelper.showRewardAd(() => {
+        WxAdHelper.showRewardAd(AdRewardType.DOUBLE_BUFF, () => {
             this.hasDoubleBuff = true;
             StorageUtil.setBool(STORAGE_KEY.DOUBLE_BUFF, true);
-            this.btnWatchAdBuff.interactable = false;
+            if (this.btnWatchAdBuff) {
+                this.btnWatchAdBuff.interactable = false;
+            }
             const wx = (window as any).wx;
             if (wx) wx.showToast({ title: "本局经验双倍生效！" });
         }, () => {
@@ -115,16 +288,11 @@ export class MainMenu extends Component {
             if (wx) wx.showToast({ title: "请先同意隐私政策" });
             return;
         }
-        const wx = (window as any).wx;
-        if (!wx) return;
-        wx.shareAppMessage({
-            title: "三国割草：赵云传，爽快割草！",
-            query: "from=share_revive"
-        });
-        let revive = StorageUtil.getNumber(STORAGE_KEY.REVIVE_COUNT, 1);
-        revive += 1;
-        StorageUtil.setNumber(STORAGE_KEY.REVIVE_COUNT, revive);
-        wx.showToast({ title: "获得额外复活机会！" });
+        const success = ShareManager.Instance.share(ShareType.REVIVE);
+        if (success) {
+            DailyTaskManager.Instance.addProgress(TaskType.SHARE, 1);
+            this.refreshGold();
+        }
     }
 
     private registerWxHide() {
@@ -132,7 +300,80 @@ export class MainMenu extends Component {
         if (wx && wx.onHide) {
             wx.onHide(() => {
                 OfflineIncome.saveExitTime();
+                CloudSaveManager.Instance.saveToCloud();
             });
         }
+    }
+
+    private initRedDots() {
+        this.initRedDot(RedDotType.ACHIEVEMENT, this.redDotAchievement);
+        this.initRedDot(RedDotType.SIGN_IN, this.redDotSignIn);
+        this.initRedDot(RedDotType.TALENT, this.redDotTalent);
+        this.initRedDot(RedDotType.HERO, this.redDotHero);
+        this.initRedDot(RedDotType.DAILY_TASK, this.redDotDailyTask);
+        this.initRedDot(RedDotType.SHARE, this.redDotShare);
+        this.refreshRedDots();
+    }
+
+    private initRedDot(type: RedDotType, node: Node | null) {
+        if (!node) return;
+        node.active = false;
+    }
+
+    private registerRedDotEvent() {
+        EventManager.Instance.on(RED_DOT_EVENT, this.onRedDotChanged, this);
+    }
+
+    private onRedDotChanged(type: RedDotType, visible: boolean) {
+        switch (type) {
+            case RedDotType.ACHIEVEMENT:
+                if (this.redDotAchievement) this.redDotAchievement.active = visible;
+                break;
+            case RedDotType.SIGN_IN:
+                if (this.redDotSignIn) this.redDotSignIn.active = visible;
+                break;
+            case RedDotType.TALENT:
+                if (this.redDotTalent) this.redDotTalent.active = visible;
+                break;
+            case RedDotType.HERO:
+                if (this.redDotHero) this.redDotHero.active = visible;
+                break;
+            case RedDotType.DAILY_TASK:
+                if (this.redDotDailyTask) this.redDotDailyTask.active = visible;
+                break;
+            case RedDotType.SHARE:
+                if (this.redDotShare) this.redDotShare.active = visible;
+                break;
+        }
+    }
+
+    private refreshRedDots() {
+        AchievementManager.Instance.load();
+        const unclaimedAch = AchievementManager.Instance.getUnclaimedCount();
+        RedDotManager.Instance.setDot(RedDotType.ACHIEVEMENT, unclaimedAch > 0);
+
+        SignInManager.Instance.load();
+        RedDotManager.Instance.setDot(RedDotType.SIGN_IN, SignInManager.Instance.canClaim());
+
+        this.updateDailyTaskRedDot();
+        this.updateShareRedDot();
+    }
+
+    private updateDailyTaskRedDot() {
+        DailyTaskManager.Instance.load();
+        const hasDaily = DailyTaskManager.Instance.hasUnclaimedReward();
+        RedDotManager.Instance.setDot(RedDotType.DAILY_TASK, hasDaily);
+    }
+
+    private updateShareRedDot() {
+        ShareManager.Instance.load();
+        let hasShare = false;
+        for (const type of Object.values(ShareType)) {
+            if (ShareManager.Instance.canShare(type)) {
+                hasShare = true;
+                break;
+            }
+        }
+        RedDotManager.Instance.setDot(RedDotType.SHARE, hasShare);
     }
 }
