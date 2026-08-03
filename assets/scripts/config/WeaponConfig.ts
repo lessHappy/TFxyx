@@ -1,0 +1,84 @@
+export interface WeaponConfigData {
+    id: string;
+    name: string;
+    desc: string;
+    unlockLv: number;
+    baseDamage: number;
+    attackInterval: number;
+    range: number;
+    projectileSpeed: number;
+    maxLevel: number;
+    damageAddPerLv: number;
+    // 每级减少攻击间隔的比例（0~1），0表示不减少
+    intervalReducePerLv: number;
+}
+
+export const WEAPON_CONFIG: Record<string, WeaponConfigData> = {
+    spear: {
+        id: "spear",
+        name: "长枪",
+        desc: "近距离环绕穿刺敌人",
+        unlockLv: 1,
+        baseDamage: 12,
+        attackInterval: 0.7,
+        range: 90,
+        projectileSpeed: 0,
+        maxLevel: 10,
+        damageAddPerLv: 4,
+        intervalReducePerLv: 0.03
+    },
+    knife: {
+        id: "knife",
+        name: "飞刀",
+        desc: "向前投掷穿透飞刀，贯穿多个敌人",
+        unlockLv: 2,
+        baseDamage: 9,
+        attackInterval: 0.55,
+        range: 320,
+        projectileSpeed: 420,
+        maxLevel: 10,
+        damageAddPerLv: 3,
+        intervalReducePerLv: 0.04
+    },
+    fireball: {
+        id: "fireball",
+        name: "火球术",
+        desc: "发射火球，命中敌人造成范围爆炸伤害",
+        unlockLv: 4,
+        baseDamage: 18,
+        attackInterval: 1.1,
+        range: 280,
+        projectileSpeed: 260,
+        maxLevel: 10,
+        damageAddPerLv: 6,
+        intervalReducePerLv: 0.03
+    },
+    boomerang: {
+        id: "boomerang",
+        name: "回旋刃",
+        desc: "飞出后折返，来回切割沿途敌人",
+        unlockLv: 6,
+        baseDamage: 7,
+        attackInterval: 0.65,
+        range: 220,
+        projectileSpeed: 300,
+        maxLevel: 10,
+        damageAddPerLv: 2,
+        intervalReducePerLv: 0.03
+    }
+};
+
+// 同步更新图鉴数据源，替换 WeaponBookUI 内 WEAPON_DATA
+export function getWeaponBookList() {
+    const list = [];
+    for (const key in WEAPON_CONFIG) {
+        const cfg = WEAPON_CONFIG[key];
+        list.push({
+            id: cfg.id,
+            name: cfg.name,
+            desc: cfg.desc,
+            unlockLevel: cfg.unlockLv
+        })
+    }
+    return list;
+}
