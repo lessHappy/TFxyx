@@ -13,7 +13,7 @@ import { ObjectPool } from './ObjectPool';
 import { StorageUtil } from './StorageUtil';
 import { TalentManager } from './TalentManager';
 import { TalentType } from '../config/TalentConfig';
-import { BOSS_CONFIG, DOUBLE_BUFF_CONFIG } from '../config/GameConfig';
+import { BOSS_CONFIG, DOUBLE_BUFF_CONFIG, KNOCKBACK_CONFIG, ENEMY_COLLISION_CONFIG } from '../config/GameConfig';
 import { DamageNumber } from '../entity/DamageNumber';
 import { AudioManager, BGM_PATH } from './AudioManager';
 import { VibrateManager } from './VibrateManager';
@@ -24,9 +24,21 @@ import { AchievementManager } from './AchievementManager';
 import { ACHIEVEMENT_STORAGE_KEYS } from '../config/AchievementConfig';
 import { DailyTaskManager } from './DailyTaskManager';
 import { TaskType } from '../config/DailyTaskConfig';
+import { HeroManager } from './HeroManager';
+import { HeroType } from '../config/HeroConfig';
+import { RangedEnemy } from '../entity/RangedEnemy';
+import { BomberEnemy } from '../entity/BomberEnemy';
+import { SummonerEnemy } from '../entity/SummonerEnemy';
+import { HealerEnemy } from '../entity/HealerEnemy';
+import { ControllerEnemy } from '../entity/ControllerEnemy';
+import { EnemyBullet } from '../entity/EnemyBullet';
 const { ccclass, property } = _decorator;
 
 const MAX_DELTA_TIME = 0.1;
+
+const STORAGE_KEY_TOTAL_KILL = "sgzy_total_kill";
+const STORAGE_KEY_GOLD = "sgzy_gold";
+const STORAGE_KEY_BATTLE_TIME = "sgzy_total_battle_time";
 
 @ccclass('GameManager')
 export class GameManager {
@@ -51,6 +63,12 @@ export class GameManager {
     @property(Node) enemyNormalPrefab: Node = null!;
     @property(Node) enemyFastPrefab: Node = null!;
     @property(Node) enemyTankPrefab: Node = null!;
+    @property(Node) enemyRangedPrefab: Node = null!;
+    @property(Node) enemyBomberPrefab: Node = null!;
+    @property(Node) enemySummonerPrefab: Node = null!;
+    @property(Node) enemyHealerPrefab: Node = null!;
+    @property(Node) enemyControllerPrefab: Node = null!;
+    @property(Node) enemyBulletPrefab: Node = null!;
 
     public enemyList: Enemy[] = [];
     public totalKillCount: number = 0;
@@ -65,10 +83,19 @@ export class GameManager {
     // Boss 系统
     private bossTimer: number = 0;
     private bossAlive: boolean = false;
+    private _heroDamageDealt: number = 0;
 
     // 标记Boss状态
     setBossAlive(alive: boolean) {
         this.bossAlive = alive;
+    }
+
+    addHeroDamage(damage: number) {
+        this._heroDamageDealt += damage;
+    }
+
+    getHeroDamageDealt(): number {
+        return this._heroDamageDealt;
     }
 
     onLoad() {
@@ -92,6 +119,24 @@ export class GameManager {
         EnemyPoolManager.Instance.registerEnemy(EnemyType.TANK, this.enemyTankPrefab, 30);
         if (this.bossPrefab) {
             EnemyPoolManager.Instance.registerEnemy(EnemyType.BOSS, this.bossPrefab, 3);
+        }
+        if (this.enemyRangedPrefab) {
+            EnemyPoolManager.Instance.registerEnemy(EnemyType.RANGED, this.enemyRangedPrefab, 15);
+        }
+        if (this.enemyBomberPrefab) {
+            EnemyPoolManager.Instance.registerEnemy(EnemyType.BOMBER, this.enemyBomberPrefab, 15);
+        }
+        if (this.enemySummonerPrefab) {
+            EnemyPoolManager.Instance.registerEnemy(EnemyType.SUMMONER, this.enemySummonerPrefab, 10);
+        }
+        if (this.enemyHealerPrefab) {
+            EnemyPoolManager.Instance.registerEnemy(EnemyType.HEALER, this.enemyHealerPrefab, 10);
+        }
+        if (this.enemyControllerPrefab) {
+            EnemyPoolManager.Instance.registerEnemy(EnemyType.CONTROLLER, this.enemyControllerPrefab, 10);
+        }
+        if (this.enemyBulletPrefab) {
+            EnemyBullet.setPoolPrefab(this.enemyBulletPrefab);
         }
         this.initBulletPool();
         WeaponManager.Instance.init(this.player);
@@ -209,11 +254,15 @@ export class GameManager {
     }
 
     addGold(amount: number) {
-        const goldTalentBonus = TalentManager.Instance.getEffectPercent(TalentType.GOLD_GAIN);
+        const heroType = this.player ? this.player.getHeroType() : HeroType.ZHAO_YUN;
+        const goldTalentBonus = TalentManager.Instance.getEffectPercentWithHero(TalentType.GOLD_GAIN, heroType);
         let finalAmount = this.hasDoubleBuff
             ? amount * DOUBLE_BUFF_CONFIG.goldMultiplier
             : amount;
         finalAmount = Math.floor(finalAmount * goldTalentBonus);
+        if (this.player && this.player.getDoubleDropChance() > 0 && Math.random() < this.player.getDoubleDropChance()) {
+            finalAmount *= 2;
+        }
         this.totalGold += finalAmount;
         DailyTaskManager.Instance.addProgress(TaskType.COLLECT_GOLD, finalAmount);
     }
@@ -267,6 +316,9 @@ export class GameManager {
         // 连杀计时器
         ComboManager.Instance.update(deltaTime);
 
+        // 敌人碰撞处理
+        this.processEnemyCollisions(deltaTime);
+
         // Boss 计时器
         this.bossTimer -= deltaTime;
         if (this.bossTimer <= 0) {
@@ -311,6 +363,68 @@ export class GameManager {
         }
     }
 
+    createAoeDamageWithKnockback(center: Vec3, radius: number, damage: number, knockbackForce: number = 0) {
+        const radiusSq = radius * radius;
+        const list = this.enemyList;
+        const len = list.length;
+        for (let i = 0; i < len; i++) {
+            const enemy = list[i];
+            if (!enemy.node.active) continue;
+            const enemyPos = enemy.node.worldPosition;
+            const distSq = Vec3.distanceSquared(center, enemyPos);
+            if (distSq <= radiusSq) {
+                enemy.takeDamage(damage);
+                if (knockbackForce > 0) {
+                    const dirX = enemyPos.x - center.x;
+                    const dirY = enemyPos.y - center.y;
+                    enemy.applyKnockback(dirX, dirY, knockbackForce);
+                }
+            }
+        }
+    }
+
+    processEnemyCollisions(dt: number) {
+        if (!ENEMY_COLLISION_CONFIG.enabled) return;
+        const list = this.enemyList;
+        const len = list.length;
+        if (len < 2) return;
+
+        const collisionRadius = ENEMY_COLLISION_CONFIG.collisionRadius;
+        const collisionRadiusSq = collisionRadius * collisionRadius * 4;
+        const pushForce = ENEMY_COLLISION_CONFIG.pushForce;
+        const maxCheck = Math.min(ENEMY_COLLISION_CONFIG.maxEnemiesCheck, len);
+
+        for (let i = 0; i < maxCheck; i++) {
+            const enemyA = list[i];
+            if (!enemyA || !enemyA.node.active || enemyA['isDead']) continue;
+
+            const checkCount = Math.min(i + 8, len);
+            for (let j = i + 1; j < checkCount; j++) {
+                const enemyB = list[j];
+                if (!enemyB || !enemyB.node.active || enemyB['isDead']) continue;
+
+                const posA = enemyA.node.worldPosition;
+                const posB = enemyB.node.worldPosition;
+                const dx = posA.x - posB.x;
+                const dy = posA.y - posB.y;
+                const distSq = dx * dx + dy * dy;
+
+                if (distSq < collisionRadiusSq && distSq > 0.01) {
+                    const dist = Math.sqrt(distSq);
+                    const overlap = collisionRadius * 2 - dist;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    const push = overlap * 0.5 * pushForce * dt;
+
+                    const posANew = enemyA.node.position;
+                    const posBNew = enemyB.node.position;
+                    enemyA.node.setPosition(posANew.x + nx * push, posANew.y + ny * push, posANew.z);
+                    enemyB.node.setPosition(posBNew.x - nx * push, posBNew.y - ny * push, posBNew.z);
+                }
+            }
+        }
+    }
+
     private _enemyRangeResult: Enemy[] = [];
     getEnemyInRange(center: Vec3, radius: number): Enemy[] {
         this._enemyRangeResult.length = 0;
@@ -346,6 +460,10 @@ export class GameManager {
 
         const maxCombo = ComboManager.Instance ? ComboManager.Instance.maxComboCount : 0;
         ach.updateStat(ACHIEVEMENT_STORAGE_KEYS.MAX_COMBO, maxCombo);
+
+        const heroType = HeroManager.Instance.getSelectedHero();
+        HeroManager.Instance.addHeroKill(heroType, this.totalKillCount);
+        HeroManager.Instance.recordHeroSingleGameKill(heroType, this.totalKillCount);
     }
 
     battleOver() {
@@ -355,12 +473,16 @@ export class GameManager {
         DailyTaskManager.Instance.addProgress(TaskType.PLAY_GAME, 1);
         DailyTaskManager.Instance.addProgress(TaskType.SURVIVE_TIME, Math.floor(this.battleTime));
 
+        // 英雄解锁检测
+        this.checkHeroUnlock();
+
         if (this.dropContainer) {
             this.dropContainer.removeAllChildren();
         }
         BulletPoolManager.Instance.clearAllPool();
         WeaponManager.Instance.clearAllWeapon();
         EnemyPoolManager.Instance.clearAll();
+        EnemyBullet.clearPool();
         this.enemyList.length = 0;
         this.totalKillCount = 0;
         this.totalGold = 0;
@@ -370,6 +492,7 @@ export class GameManager {
         this.gameOver = false;
         this.bossTimer = BOSS_CONFIG.spawnInterval;
         this.bossAlive = false;
+        this._heroDamageDealt = 0;
         ComboManager.Instance.reset();
         EventManager.Instance.off(GameEvent.PLAYER_LEVEL_UP, this.onPlayerLevelUp, this);
         EventManager.Instance.off(GameEvent.PLAYER_DEAD, this.onPlayerDead, this);
@@ -378,6 +501,21 @@ export class GameManager {
         EventManager.Instance.off("FIRST_EXP_PICKUP", this.onFirstExpPickup, this);
         AudioManager.Instance.stopBgm();
         ExpDrop.resetFirstPick();
+    }
+
+    private checkHeroUnlock() {
+        const heroManager = HeroManager.Instance;
+        const totalKill = StorageUtil.getNumber(STORAGE_KEY_TOTAL_KILL, 0);
+        const totalGold = StorageUtil.getNumber(STORAGE_KEY_GOLD, 0);
+        const totalBattleTime = StorageUtil.getNumber(STORAGE_KEY_BATTLE_TIME, 0);
+
+        const progressMap: Record<string, number> = {
+            kill: totalKill + this.totalKillCount,
+            gold: totalGold + this.totalGold,
+            survive: totalBattleTime + Math.floor(this.battleTime),
+        };
+
+        heroManager.checkAllUnlockConditions(progressMap);
     }
 
     onDestroy() {

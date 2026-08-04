@@ -39,6 +39,9 @@ export class MinionSoldier extends Component {
         const distSq = Vec3.distanceSquared(this.node.worldPosition, this.attackTarget.node.worldPosition);
         if (distSq < this.ATTACK_RANGE_SQ) {
             this.attackTarget.takeDamage(this.damage);
+            const enemyPos = this.attackTarget.node.worldPosition;
+            const selfPos = this.node.worldPosition;
+            this.attackTarget.applyKnockback(enemyPos.x - selfPos.x, enemyPos.y - selfPos.y, 50);
             this.attackCd = 0;
         }
     }

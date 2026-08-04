@@ -10,6 +10,7 @@ import { ShareManager } from '../core/ShareManager';
 import { ShareType } from '../config/ShareConfig';
 import { LoadingUI } from './LoadingUI';
 import { OpenDataManager } from '../core/OpenDataManager';
+import { HeroManager } from '../core/HeroManager';
 const { ccclass, property } = _decorator;
 
 @ccclass('BattleResultUI')
@@ -22,6 +23,7 @@ export class BattleResultUI extends Component {
     @property(Button) btnRevive: Button = null!;
     @property(Button) btnDoubleGold: Button = null!;
     @property(Button) btnShare: Button = null!;
+    @property(Label) labHero: Label = null!;
 
     private _reviveUsed: boolean = false;
     private _doubleGoldUsed: boolean = false;
@@ -65,6 +67,14 @@ export class BattleResultUI extends Component {
         this._pendingGold = gm.totalGold;
         if (this.labGold) {
             this.labGold.string = `获得金币：${this._pendingGold}`;
+        }
+
+        if (this.labHero) {
+            const heroData = HeroManager.Instance.getSelectedHeroData();
+            const mastery = HeroManager.Instance.getMasteryData(heroData.id);
+            const masteryTag = mastery.level > 0 ? ` [${mastery.name}]` : "";
+            const heroDmg = gm.getHeroDamageDealt();
+            this.labHero.string = `英雄：${heroData.name}${masteryTag} | 输出：${heroDmg}`;
         }
 
         if (this.labRank) {
@@ -206,6 +216,20 @@ export class BattleResultUI extends Component {
                     this._pendingGold
                 );
             }
+
+            const heroType = HeroManager.Instance.getSelectedHero();
+            HeroManager.Instance.recordHeroGameResult(
+                heroType,
+                gm.totalKillCount,
+                Math.floor(gm.battleTime)
+            );
+            HeroManager.Instance.recordHeroSingleGameKill(heroType, gm.totalKillCount);
+
+            if (gm.player && gm.player.getHeroSkillLevel() >= gm.player.getHeroSkillMaxLevel()) {
+                const current = StorageUtil.getNumber("sgzy_hero_skill_max", 0);
+                StorageUtil.setNumber("sgzy_hero_skill_max", current + 1);
+            }
+
             gm.battleOver();
         }
         LoadingUI.loadSceneWithLoading("MainMenu", undefined, "返回主城...");

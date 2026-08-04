@@ -5,6 +5,7 @@ import { ComboManager } from '../core/ComboManager';
 import { EventManager } from '../core/EventManager';
 import { StorageUtil } from '../core/StorageUtil';
 import { HeroManager } from '../core/HeroManager';
+import { HeroType, HERO_MASTERY_CONFIG, HERO_MASTERY_REWARDS, HeroSkillEffectType } from '../config/HeroConfig';
 import { TutorialUI } from './TutorialUI';
 import { SettingsUI } from './SettingsUI';
 import { LoadingUI } from './LoadingUI';
@@ -36,6 +37,7 @@ export class GameHUD extends Component {
 
     @property(Node) nodeBuffIndicator: Node = null!;
     @property(Label) labDifficulty: Label = null!;
+    @property(Label) labHeroSkill: Label = null!;
 
     private _lastMin: number = -1;
     private _lastSec: number = -1;
@@ -53,6 +55,7 @@ export class GameHUD extends Component {
         EventManager.Instance.on("BOSS_SPAWN", this.showBossWarning, this);
         EventManager.Instance.on("BOSS_HP_UPDATE", this.updateBossHP, this);
         EventManager.Instance.on("BOSS_DEAD", this.hideBossHP, this);
+        EventManager.Instance.on("HERO_MASTERY_UP", this.onBattleMasteryUp, this);
 
         if (this.btnPause) {
             this.btnPause.node.on(Button.Event.CLICK, this.onPauseClick, this);
@@ -80,7 +83,13 @@ export class GameHUD extends Component {
 
         if (this.labHeroName) {
             const heroData = HeroManager.Instance.getSelectedHeroData();
-            this.labHeroName.string = heroData.name;
+            const mastery = HeroManager.Instance.getMasteryData(heroData.id);
+            const masteryTag = mastery.level > 0 ? ` [${mastery.name}]` : "";
+            this.labHeroName.string = heroData.name + masteryTag;
+        }
+
+        if (this.labHeroSkill) {
+            this.labHeroSkill.node.active = false;
         }
     }
 
@@ -88,6 +97,22 @@ export class GameHUD extends Component {
         EventManager.Instance.off("BOSS_SPAWN", this.showBossWarning, this);
         EventManager.Instance.off("BOSS_HP_UPDATE", this.updateBossHP, this);
         EventManager.Instance.off("BOSS_DEAD", this.hideBossHP, this);
+        EventManager.Instance.off("HERO_MASTERY_UP", this.onBattleMasteryUp, this);
+    }
+
+    private onBattleMasteryUp(heroType: HeroType, level: number) {
+        const heroData = HeroManager.Instance.getSelectedHeroData();
+        if (heroData.id === heroType && this.labHeroSkill) {
+            const masteryCfg = HERO_MASTERY_CONFIG[level];
+            const reward = HERO_MASTERY_REWARDS[level] || 0;
+            let text = `⭐ 熟练度提升：[${masteryCfg.name}]`;
+            if (reward > 0) text += ` +${reward}金币`;
+            this.labHeroSkill.string = text;
+            this.labHeroSkill.node.active = true;
+            this.scheduleOnce(() => {
+                if (this.labHeroSkill) this.labHeroSkill.node.active = false;
+            }, 2);
+        }
     }
 
     onPauseClick() {
@@ -226,6 +251,54 @@ export class GameHUD extends Component {
 
         if (this.labDifficulty) {
             this.labDifficulty.string = `难度 ${gm.difficultyScale.toFixed(1)}`;
+        }
+
+        if (this.labHeroSkill) {
+            const heroData = HeroManager.Instance.getSelectedHeroData();
+            const skillEffect = player.getHeroSkillType();
+            let skillText = "";
+            let skillActive = false;
+
+            switch (skillEffect) {
+                case HeroSkillEffectType.KILL_BUFF:
+                    if (player.getKillBuffActive()) {
+                        const timer = player.getKillBuffTimer();
+                        skillText = `【${heroData.skillName} Lv${player.getHeroSkillLevel()}】攻击力提升 ${timer}s`;
+                        skillActive = true;
+                    }
+                    break;
+                case HeroSkillEffectType.LOW_HP_BERSERK:
+                    if (player.hp < player.maxHp * 0.3) {
+                        skillText = `【${heroData.skillName} Lv${player.getHeroSkillLevel()}】伤害+${Math.floor(player.getHeroLowHpDmgBonus() * 100)}%`;
+                        skillActive = true;
+                    }
+                    break;
+                case HeroSkillEffectType.LEVEL_UP_HEAL:
+                    skillText = `【${heroData.skillName} Lv${player.getHeroSkillLevel()}】升级额外回血`;
+                    skillActive = true;
+                    break;
+                case HeroSkillEffectType.DASH_COOLDOWN: {
+                    const dashCd = player.getDashCooldownTimer();
+                    if (dashCd > 0) {
+                        skillText = `【${heroData.skillName} Lv${player.getHeroSkillLevel()}】冲刺冷却 ${dashCd.toFixed(1)}s`;
+                    } else {
+                        skillText = `【${heroData.skillName} Lv${player.getHeroSkillLevel()}】冲刺就绪`;
+                    }
+                    skillActive = true;
+                    break;
+                }
+                case HeroSkillEffectType.CRIT_DMG_BONUS:
+                    skillText = `【${heroData.skillName} Lv${player.getHeroSkillLevel()}】暴击伤害+${Math.floor(player.getHeroCritDmgBonus() * 100)}%`;
+                    skillActive = true;
+                    break;
+                default:
+                    break;
+            }
+
+            this.labHeroSkill.node.active = skillActive;
+            if (skillActive) {
+                this.labHeroSkill.string = skillText;
+            }
         }
     }
 }

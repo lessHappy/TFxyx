@@ -40,6 +40,11 @@ export enum AdRewardType {
     REVIVE = "revive",
     GOLD_BONUS = "gold_bonus",
     EXP_BONUS = "exp_bonus",
+    HERO_ZHAO_YUN = "hero_zhao_yun",
+    HERO_GUAN_YU = "hero_guan_yu",
+    HERO_ZHANG_FEI = "hero_zhang_fei",
+    HERO_ZHUGE_LIANG = "hero_zhu_ge_liang",
+    HERO_LV_BU = "hero_lv_bu",
 }
 
 export enum AdErrorCode {

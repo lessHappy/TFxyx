@@ -1,5 +1,7 @@
 import { ACHIEVEMENT_LIST, ACHIEVEMENT_STORAGE_KEYS, AchievementData, AchievementType, AchievementRewardType } from '../config/AchievementConfig';
 import { StorageUtil } from './StorageUtil';
+import { HeroManager } from './HeroManager';
+import { HeroType } from '../config/HeroConfig';
 
 export interface AchievementProgress {
     currentValue: number;
@@ -48,13 +50,13 @@ export class AchievementManager {
         const isCompleted = completedIds.indexOf(achId) !== -1;
         const isClaimed = claimedIds.indexOf(achId) !== -1;
 
-        const statValue = this.getStatValue(ach.category);
+        const statValue = this.getStatValue(achId, ach.category);
         const currentValue = isCompleted ? ach.targetValue : Math.min(statValue, ach.targetValue);
 
         return { currentValue, isCompleted, isClaimed };
     }
 
-    private getStatValue(category: AchievementType): number {
+    private getStatValue(achId: string, category: AchievementType): number {
         switch (category) {
             case AchievementType.KILL:
                 return Math.max(
@@ -76,7 +78,7 @@ export class AchievementManager {
             case AchievementType.SURVIVE:
                 return StorageUtil.getNumber(ACHIEVEMENT_STORAGE_KEYS.MAX_SURVIVE, 0);
             case AchievementType.HERO:
-                return this.getHeroUnlockedCount();
+                return this.getHeroStatValue(achId);
             case AchievementType.SPECIAL:
                 return 0;
             default:
@@ -84,9 +86,43 @@ export class AchievementManager {
         }
     }
 
-    private getHeroUnlockedCount(): number {
-        const heroData = StorageUtil.getObject("sgzy_hero_unlocked", []);
-        return heroData.length || 0;
+    private getHeroStatValue(achId: string): number {
+        if (achId === "hero_all") {
+            return HeroManager.Instance.getUnlockedHeroes().length;
+        }
+        if (achId.startsWith("hero_mastery_")) {
+            const heroType = this.extractHeroType(achId, "hero_mastery_");
+            return heroType ? HeroManager.Instance.getMasteryLevel(heroType) >= 3 ? 1 : 0 : 0;
+        }
+        if (achId.startsWith("hero_kill_")) {
+            const heroType = this.extractHeroType(achId, "hero_kill_");
+            return heroType ? HeroManager.Instance.getHeroTotalKills(heroType) : 0;
+        }
+        if (achId === "hero_survive_20min") {
+            return StorageUtil.getNumber(ACHIEVEMENT_STORAGE_KEYS.MAX_SURVIVE, 0);
+        }
+        if (achId === "hero_game_50" || achId === "hero_game_100") {
+            const stats = HeroManager.Instance.getAllHeroStats();
+            return stats.reduce((sum, s) => sum + s.games, 0);
+        }
+        if (achId === "hero_skill_max") {
+            return StorageUtil.getNumber("sgzy_hero_skill_max", 0);
+        }
+        return 0;
+    }
+
+    private extractHeroType(achId: string, prefix: string): HeroType | null {
+        const suffix = achId.substring(prefix.length);
+        const parts = suffix.split("_");
+        const heroName = parts[0];
+        const heroMap: Record<string, HeroType> = {
+            "zhaoyun": HeroType.ZHAO_YUN,
+            "guanyu": HeroType.GUAN_YU,
+            "zhangfei": HeroType.ZHANG_FEI,
+            "zhugeliang": HeroType.ZHUGE_LIANG,
+            "lvbu": HeroType.LV_BU,
+        };
+        return heroMap[heroName] || null;
     }
 
     checkAndComplete(achId: string): boolean {
@@ -97,7 +133,7 @@ export class AchievementManager {
         const completedIds = this.getCompletedIds();
         if (completedIds.indexOf(achId) !== -1) return true;
 
-        const statValue = this.getStatValue(ach.category);
+        const statValue = this.getStatValue(achId, ach.category);
         if (statValue >= ach.targetValue) {
             completedIds.push(achId);
             StorageUtil.setObject(ACHIEVEMENT_STORAGE_KEYS.COMPLETED, completedIds);
@@ -115,7 +151,7 @@ export class AchievementManager {
             const completedIds = this.getCompletedIds();
             if (completedIds.indexOf(ach.id) !== -1) continue;
 
-            const statValue = this.getStatValue(ach.category);
+            const statValue = this.getStatValue(ach.id, ach.category);
             if (statValue >= ach.targetValue) {
                 completedIds.push(ach.id);
                 StorageUtil.setObject(ACHIEVEMENT_STORAGE_KEYS.COMPLETED, completedIds);

@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Button, Label, director } from 'cc';
+import { _decorator, Component, Node, Button, Label, director, Sprite, SpriteFrame, resources } from 'cc';
 import { WxAdHelper } from '../core/WxAdHelper';
 import { AdRewardType } from '../config/AdConfig';
 import { StorageUtil } from '../core/StorageUtil';
@@ -70,6 +70,9 @@ export class MainMenu extends Component {
     @property(HeroUI) heroUI: HeroUI = null!;
     @property(SettingsUI) settingsUI: SettingsUI = null!;
     @property(ShareUI) shareUI: ShareUI = null!;
+    @property(Sprite) heroPreviewSprite: Sprite = null!;
+    @property(Label) heroPreviewName: Label = null!;
+    @property(Label) heroPreviewTitle: Label = null!;
     @property(StageAnnounceUI) stageAnnounceUI: StageAnnounceUI = null!;
     @property(SignInUI) signInUI: SignInUI = null!;
     @property(AchievementUI) achievementUI: AchievementUI = null!;
@@ -117,28 +120,33 @@ export class MainMenu extends Component {
         this.initRedDots();
         this.registerRedDotEvent();
         if (this.talentUI) {
-            this.talentUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+            this.talentUI.init({
+                onGoldChanged: (gold: number) => this.refreshGold(gold),
+                onStatChanged: () => this.refreshHeroPreview(),
+            });
         }
         if (this.heroUI) {
             this.heroUI.init({ onHeroChanged: (heroType) => this.onHeroChanged(heroType) });
         }
+
+        EventManager.Instance.on("HERO_UNLOCKED", this.onHeroUnlocked, this);
         if (this.shareUI) {
-            this.shareUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+            this.shareUI.init({ onGoldChanged: (gold: number) => this.refreshGold(gold) });
         }
         if (this.stageAnnounceUI) {
             this.stageAnnounceUI.init(() => this.enterBattleScene());
         }
         if (this.signInUI) {
-            this.signInUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+            this.signInUI.init({ onGoldChanged: (gold: number) => this.refreshGold(gold) });
         }
         if (this.achievementUI) {
-            this.achievementUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+            this.achievementUI.init({ onGoldChanged: (gold: number) => this.refreshGold(gold) });
         }
         if (this.redeemUI) {
-            this.redeemUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+            this.redeemUI.init({ onGoldChanged: (gold: number) => this.refreshGold(gold) });
         }
         if (this.dailyTaskUI) {
-            this.dailyTaskUI.init({ onGoldChanged: (gold: number) => this.refreshGold() });
+            this.dailyTaskUI.init({ onGoldChanged: (gold: number) => this.refreshGold(gold) });
         }
         AudioManager.Instance.playBgm(BGM_PATH.MAIN, true, 0.5);
     }
@@ -154,6 +162,7 @@ export class MainMenu extends Component {
     }
 
     onDestroy() {
+        EventManager.Instance.off("HERO_UNLOCKED", this.onHeroUnlocked, this);
         WxAdHelper.destroy();
     }
 
@@ -182,13 +191,50 @@ export class MainMenu extends Component {
         }
     }
 
-    refreshGold() {
-        this.goldNum = StorageUtil.getNumber(STORAGE_KEY.GOLD, 1200);
+    refreshGold(gold?: number) {
+        if (gold !== undefined) {
+            this.goldNum = gold;
+        } else {
+            this.goldNum = StorageUtil.getNumber(STORAGE_KEY.GOLD, 1200);
+        }
         this.labGold.string = `${this.goldNum}`;
     }
 
     onHeroChanged() {
         this.refreshGold();
+        this.refreshHeroPreview();
+    }
+
+    private onHeroUnlocked(heroType: string) {
+        this.redDotManager.setDot(RedDotType.HERO, true);
+        const wx = (window as any).wx;
+        if (wx) {
+            const heroData = HeroManager.Instance.getHeroDataByType(heroType as any);
+            if (heroData) wx.showToast({ title: `新英雄解锁：${heroData.name}` });
+        }
+        this.refreshHeroPreview();
+    }
+
+    private refreshHeroPreview() {
+        const heroData = HeroManager.Instance.getSelectedHeroData();
+        if (!heroData) return;
+
+        if (this.heroPreviewSprite) {
+            const spritePath = heroData.spriteFrame;
+            if (spritePath) {
+                resources.load(spritePath, SpriteFrame, (err, spriteFrame) => {
+                    if (!err && this.heroPreviewSprite && this.heroPreviewSprite.isValid) {
+                        this.heroPreviewSprite.spriteFrame = spriteFrame;
+                    }
+                });
+            }
+        }
+        if (this.heroPreviewName) {
+            this.heroPreviewName.string = heroData.name;
+        }
+        if (this.heroPreviewTitle) {
+            this.heroPreviewTitle.string = heroData.title;
+        }
     }
 
     tryShowOfflineReward() {
@@ -301,6 +347,7 @@ export class MainMenu extends Component {
             wx.onHide(() => {
                 OfflineIncome.saveExitTime();
                 CloudSaveManager.Instance.saveToCloud();
+                HeroManager.Instance.cleanup();
             });
         }
     }
@@ -355,8 +402,13 @@ export class MainMenu extends Component {
         SignInManager.Instance.load();
         RedDotManager.Instance.setDot(RedDotType.SIGN_IN, SignInManager.Instance.canClaim());
 
+        this.updateHeroRedDot();
         this.updateDailyTaskRedDot();
         this.updateShareRedDot();
+    }
+
+    private updateHeroRedDot() {
+        RedDotManager.Instance.setDot(RedDotType.HERO, HeroManager.Instance.hasUnlockableHero());
     }
 
     private updateDailyTaskRedDot() {

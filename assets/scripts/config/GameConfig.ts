@@ -2,7 +2,12 @@ export const ENEMY_CONFIG: Record<string, { hp: number; speed: number; exp: numb
     normal: { hp: 60, speed: 80, exp: 8, damage: 5, gold:1 },
     fast: { hp: 35, speed: 130, exp: 12, damage: 4, gold:2 },
     tank: { hp: 180, speed: 45, exp: 25, damage: 10, gold:4 },
-    boss: { hp: 500, speed: 45, exp: 80, damage: 15, gold:25 }
+    boss: { hp: 500, speed: 45, exp: 80, damage: 15, gold:25 },
+    ranged: { hp: 40, speed: 60, exp: 15, damage: 8, gold:3 },
+    bomber: { hp: 25, speed: 110, exp: 12, damage: 6, gold:2 },
+    summoner: { hp: 80, speed: 50, exp: 25, damage: 5, gold:5 },
+    healer: { hp: 70, speed: 55, exp: 20, damage: 4, gold:5 },
+    controller: { hp: 60, speed: 65, exp: 20, damage: 3, gold:4 }
 };
 
 export const EXP_DROP_CONFIG = {
@@ -20,7 +25,22 @@ export const SPAWN_CONFIG = {
     tankWeightBase: 0.15,
     fastWeightBase: 0.25,
     tankWeightPerScale: 0.03,
-    fastWeightPerScale: 0.02
+    fastWeightPerScale: 0.02,
+    // 新怪物类型权重
+    rangedWeightBase: 0.08,
+    rangedWeightPerScale: 0.02,
+    bomberWeightBase: 0.06,
+    bomberWeightPerScale: 0.01,
+    summonerWeightBase: 0.04,
+    summonerWeightPerScale: 0.015,
+    healerWeightBase: 0.04,
+    healerWeightPerScale: 0.015,
+    controllerWeightBase: 0.04,
+    controllerWeightPerScale: 0.015,
+    // 编队生成概率
+    formationChance: 0.15,
+    formationMinSize: 4,
+    formationMaxSize: 8
 };
 
 export const PLAYER_CONFIG = {
@@ -99,4 +119,19 @@ export const CHEST_CONFIG = {
 export const DOUBLE_BUFF_CONFIG = {
     expMultiplier: 2,
     goldMultiplier: 2
+};
+
+// 击退配置
+export const KNOCKBACK_CONFIG = {
+    defaultForce: 200,
+    critForceMultiplier: 1.5,
+    decayRate: 8,
+};
+
+// 敌人碰撞配置
+export const ENEMY_COLLISION_CONFIG = {
+    enabled: true,
+    collisionRadius: 28,
+    pushForce: 60,
+    maxEnemiesCheck: 30,
 };

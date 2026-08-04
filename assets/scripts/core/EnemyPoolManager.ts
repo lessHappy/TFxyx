@@ -6,7 +6,12 @@ export enum EnemyType {
     NORMAL = "normal",
     FAST = "fast",
     TANK = "tank",
-    BOSS = "boss"
+    BOSS = "boss",
+    RANGED = "ranged",
+    BOMBER = "bomber",
+    SUMMONER = "summoner",
+    HEALER = "healer",
+    CONTROLLER = "controller"
 }
 
 type EnemyPoolData = {

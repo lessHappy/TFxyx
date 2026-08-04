@@ -1,3 +1,5 @@
+import { StatusType } from '../buff/StatusEffect';
+
 export interface WeaponConfigData {
     id: string;
     name: string;
@@ -9,8 +11,12 @@ export interface WeaponConfigData {
     projectileSpeed: number;
     maxLevel: number;
     damageAddPerLv: number;
-    // 每级减少攻击间隔的比例（0~1），0表示不减少
     intervalReducePerLv: number;
+    debuffType?: StatusType;
+    debuffChance?: number;
+    debuffDuration?: number;
+    debuffValue?: number;
+    knockbackForce?: number;
 }
 
 export const WEAPON_CONFIG: Record<string, WeaponConfigData> = {
@@ -25,7 +31,8 @@ export const WEAPON_CONFIG: Record<string, WeaponConfigData> = {
         projectileSpeed: 0,
         maxLevel: 10,
         damageAddPerLv: 4,
-        intervalReducePerLv: 0.03
+        intervalReducePerLv: 0.03,
+        knockbackForce: 80,
     },
     knife: {
         id: "knife",
@@ -38,7 +45,12 @@ export const WEAPON_CONFIG: Record<string, WeaponConfigData> = {
         projectileSpeed: 420,
         maxLevel: 10,
         damageAddPerLv: 3,
-        intervalReducePerLv: 0.04
+        intervalReducePerLv: 0.04,
+        debuffType: StatusType.BLEED,
+        debuffChance: 0.25,
+        debuffDuration: 4,
+        debuffValue: 10,
+        knockbackForce: 60,
     },
     fireball: {
         id: "fireball",
@@ -51,7 +63,12 @@ export const WEAPON_CONFIG: Record<string, WeaponConfigData> = {
         projectileSpeed: 260,
         maxLevel: 10,
         damageAddPerLv: 6,
-        intervalReducePerLv: 0.03
+        intervalReducePerLv: 0.03,
+        debuffType: StatusType.BURN,
+        debuffChance: 0.4,
+        debuffDuration: 3,
+        debuffValue: 10,
+        knockbackForce: 120,
     },
     boomerang: {
         id: "boomerang",
@@ -64,7 +81,8 @@ export const WEAPON_CONFIG: Record<string, WeaponConfigData> = {
         projectileSpeed: 300,
         maxLevel: 10,
         damageAddPerLv: 2,
-        intervalReducePerLv: 0.03
+        intervalReducePerLv: 0.03,
+        knockbackForce: 40,
     },
     summon_bai_er: {
         id: "summon_bai_er",
@@ -77,8 +95,9 @@ export const WEAPON_CONFIG: Record<string, WeaponConfigData> = {
         projectileSpeed: 0,
         maxLevel: 8,
         damageAddPerLv: 3,
-        intervalReducePerLv: 0.02
-    }
+        intervalReducePerLv: 0.02,
+        knockbackForce: 50,
+    },
 };
 
 // 同步更新图鉴数据源，替换 WeaponBookUI 内 WEAPON_DATA

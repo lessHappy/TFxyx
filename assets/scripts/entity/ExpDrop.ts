@@ -5,6 +5,7 @@ import { EXP_DROP_CONFIG } from '../config/GameConfig';
 import { GameManager } from '../core/GameManager';
 import { TalentManager } from '../core/TalentManager';
 import { TalentType } from '../config/TalentConfig';
+import { HeroType } from '../config/HeroConfig';
 import { EventManager } from '../core/EventManager';
 const { ccclass, property } = _decorator;
 
@@ -47,7 +48,8 @@ export class ExpDrop extends Component {
 
     private getPickupBonus(): number {
         if (!this._bonusCached) {
-            this._cachedPickupBonus = TalentManager.Instance.getEffectPercent(TalentType.PICKUP_RANGE);
+            const heroType = Player.Instance ? Player.Instance.getHeroType() : HeroType.ZHAO_YUN;
+            this._cachedPickupBonus = TalentManager.Instance.getEffectPercentWithHero(TalentType.PICKUP_RANGE, heroType);
             this._bonusCached = true;
         }
         return this._cachedPickupBonus;
@@ -60,7 +62,8 @@ export class ExpDrop extends Component {
 
     private getMagnetRangeSq(): number {
         const bonus = this.getPickupBonus();
-        return ExpDrop.MAGNET_RANGE_SQ * bonus * bonus;
+        const magnetBuff = Player.Instance ? Player.Instance.getBuffMagnetMultiplier() : 1;
+        return ExpDrop.MAGNET_RANGE_SQ * bonus * bonus * magnetBuff * magnetBuff;
     }
 
     update(deltaTime: number) {

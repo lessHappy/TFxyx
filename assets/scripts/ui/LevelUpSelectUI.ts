@@ -1,12 +1,16 @@
-import { _decorator, Component, Node, Button } from 'cc';
+import { _decorator, Component, Node, Button, Label } from 'cc';
 import { GameManager } from '../core/GameManager';
 import { WeaponManager } from '../weapon/WeaponManager';
+import { Player } from '../entity/Player';
+import { HeroManager } from '../core/HeroManager';
 const { ccclass, property } = _decorator;
 
 @ccclass('LevelUpSelectUI')
 export class LevelUpSelectUI extends Component {
     @property(Button) btn1: Button = null!;
     @property(Button) btn2: Button = null!;
+    @property(Label) btn1Label: Label = null!;
+    @property(Label) btn2Label: Label = null!;
 
     onLoad() {
         this.node.active = false;
@@ -36,10 +40,24 @@ export class LevelUpSelectUI extends Component {
     showUI() {
         GameManager.Instance!.battlePause = true;
         this.node.active = true;
+        this.refreshOptions();
     }
 
     hideUI() {
         this.node.active = false;
         GameManager.Instance!.battlePause = false;
+    }
+
+    private refreshOptions() {
+        const player = Player.Instance;
+        const heroData = HeroManager.Instance.getSelectedHeroData();
+        const canUpgradeSkill = player && player.getHeroSkillLevel() < player.getHeroSkillMaxLevel();
+
+        if (canUpgradeSkill && this.btn1Label) {
+            this.btn1Label.string = `强化技能: ${heroData.skillName} Lv${player.getHeroSkillLevel()}/${player.getHeroSkillMaxLevel()}`;
+        }
+        if (this.btn2Label) {
+            this.btn2Label.string = "获得武器: 士兵符";
+        }
     }
 }

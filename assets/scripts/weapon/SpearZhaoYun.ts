@@ -56,6 +56,10 @@ export class SpearZhaoYun extends WeaponBase {
             if (this.hitEnemySet.has(enemy)) continue;
             if (hitNum >= this.pierceCount) break;
             enemy.takeDamage(this.getFinalDamage());
+            if (this.config.knockbackForce && this.config.knockbackForce > 0) {
+                const enemyPos = enemy.node.worldPosition;
+                enemy.applyKnockback(enemyPos.x - worldPos.x, enemyPos.y - worldPos.y, this.config.knockbackForce);
+            }
             this.hitEnemySet.add(enemy);
             hitNum++;
         }

@@ -60,6 +60,11 @@ export class WeaponManager {
             return false;
         }
         weaponComp.init(this.player, weaponId, 1);
+
+        if (cfg.debuffType && cfg.debuffChance! > 0) {
+            weaponComp.setDebuff(cfg.debuffType, cfg.debuffChance!, cfg.debuffDuration || 3, cfg.debuffValue || 0);
+        }
+
         this.equipWeaponList.push(weaponComp);
 
         AchievementManager.Instance.addStat(ACHIEVEMENT_STORAGE_KEYS.TOTAL_WEAPON, 1);

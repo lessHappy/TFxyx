@@ -6,6 +6,9 @@ import { GameManager } from '../core/GameManager';
 import { ObjectPool } from '../core/ObjectPool';
 import { ExpDrop } from './ExpDrop';
 import { AudioManager } from '../core/AudioManager';
+import { BufferManager } from '../buff/BufferManager';
+import { StatusType } from '../buff/StatusEffect';
+import { STATUS_IMMUNITY_CONFIG } from '../config/StatusEffectConfig';
 const { ccclass, property } = _decorator;
 
 @ccclass('Enemy')
@@ -14,6 +17,7 @@ export class Enemy extends Component {
     public hp: number = 60;
     public maxHp: number = 60;
     protected speed: number = 80;
+    protected baseSpeed: number = 80;
     public expReward: number = 8;
     protected goldReward: number = 0;
     protected damage: number = 5;
@@ -24,6 +28,9 @@ export class Enemy extends Component {
     protected _tempDir: Vec3 = new Vec3();
     protected _tempOffset: Vec3 = new Vec3();
 
+    protected bufferManager: BufferManager | null = null;
+    protected _knockbackResistance: number = 0;
+
     init(type: string) {
         this.enemyType = type;
         const cfg = ENEMY_CONFIG[type];
@@ -31,12 +38,32 @@ export class Enemy extends Component {
         this.hp = cfg.hp * scale;
         this.maxHp = this.hp;
         this.speed = cfg.speed;
+        this.baseSpeed = cfg.speed;
         this.expReward = cfg.exp;
         this.goldReward = cfg.gold || 0;
         this.damage = cfg.damage * scale;
         this.isDead = false;
         this.attackCd = 0;
+
+        this.bufferManager = this.node.getComponent(BufferManager);
+        if (!this.bufferManager) {
+            this.bufferManager = this.node.addComponent(BufferManager);
+        }
+        this.bufferManager.clearAllEffects();
+
+        this.setupStatusImmunity(type);
+
         if (GameManager.Instance) GameManager.Instance.enemyList.push(this);
+    }
+
+    protected setupStatusImmunity(type: string): void {
+        if (!this.bufferManager) return;
+        const immunity = STATUS_IMMUNITY_CONFIG[type];
+        if (immunity) {
+            for (const key of Object.keys(immunity)) {
+                this.bufferManager.setStatusResistance(key as StatusType, immunity[key] || 0);
+            }
+        }
     }
 
     update(deltaTime: number) {
@@ -47,6 +74,13 @@ export class Enemy extends Component {
         if (deltaTime > 0.1) {
             deltaTime = 0.1;
         }
+
+        if (this.bufferManager) {
+            this.bufferManager.update(deltaTime);
+        }
+
+        const frozen = this.bufferManager ? this.bufferManager.isFrozen : false;
+        if (frozen) return;
 
         const playerPos = Player.Instance.node.worldPosition;
         const selfPos = this.node.worldPosition;
@@ -61,23 +95,61 @@ export class Enemy extends Component {
             return;
         }
 
+        const speedMult = this.bufferManager ? this.bufferManager.speedMultiplier : 1;
+        const effectiveSpeed = this.baseSpeed * speedMult;
+
         Vec3.subtract(this._tempDir, playerPos, selfPos);
         this._tempDir.normalize();
-        Vec3.multiplyScalar(this._tempOffset, this._tempDir, this.speed * deltaTime);
+        Vec3.multiplyScalar(this._tempOffset, this._tempDir, effectiveSpeed * deltaTime);
         Vec3.add(this._tempOffset, selfPos, this._tempOffset);
+
+        if (this.bufferManager) {
+            const kb = this.bufferManager.knockbackVelocity;
+            this._tempOffset.x += kb.x * deltaTime;
+            this._tempOffset.y += kb.y * deltaTime;
+        }
+
         this.node.setWorldPosition(this._tempOffset);
     }
 
     takeDamage(damage: number) {
         if (this.isDead) return;
+        if (this.bufferManager && this.bufferManager.isInvincibleActive) return;
+
         this.hp -= damage;
 
-        // 展示伤害数字
         if (GameManager.Instance) {
             GameManager.Instance.showDamageNumber(this.node.worldPosition, damage, false);
+            GameManager.Instance.addHeroDamage(damage);
+        }
+
+        if (Player.Instance) {
+            const lifesteal = Player.Instance.getLifestealRatio();
+            if (lifesteal > 0) {
+                const healAmount = Math.ceil(damage * lifesteal);
+                Player.Instance.hp = Math.min(Player.Instance.hp + healAmount, Player.Instance.maxHp);
+            }
         }
 
         if (this.hp <= 0) this.onDead();
+    }
+
+    takeRawDamage(damage: number) {
+        if (this.isDead) return;
+        this.hp -= damage;
+        if (this.hp <= 0) this.onDead();
+    }
+
+    applyKnockback(dirX: number, dirY: number, force: number): void {
+        if (!this.bufferManager) return;
+        const resistance = this.bufferManager.getStatusResistance(StatusType.KNOCKBACK);
+        if (resistance >= 1) return;
+        const effectiveForce = force * (1 - resistance);
+        this.bufferManager.applyKnockback(dirX, dirY, effectiveForce);
+    }
+
+    getBufferManager(): BufferManager | null {
+        return this.bufferManager;
     }
 
     onDead() {

@@ -26,6 +26,15 @@ export class FireBallWeapon extends WeaponBase {
         const bulletComp = bullet.getComponent(BulletComp)!;
         bulletComp.init(BulletType.FIREBALL, this.getFinalDamage(), false, this.explosionRadius);
 
+        const debuffData = this.getDebuffData();
+        if (debuffData) {
+            bulletComp.setDebuff(debuffData.type, debuffData.duration, debuffData.value);
+        }
+
+        if (this.config.knockbackForce && this.config.knockbackForce > 0) {
+            bulletComp.setKnockback(this.config.knockbackForce);
+        }
+
         const targetPos = target.node.worldPosition;
         Vec3.subtract(this._dir, targetPos, startPos);
         const len = this._dir.length();

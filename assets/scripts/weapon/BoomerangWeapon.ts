@@ -23,6 +23,10 @@ export class BoomerangWeapon extends WeaponBase {
         const bulletComp = bullet.getComponent(BulletComp)!;
         bulletComp.init(BulletType.BOOMERANG, this.getFinalDamage(), true);
 
+        if (this.config.knockbackForce && this.config.knockbackForce > 0) {
+            bulletComp.setKnockback(this.config.knockbackForce);
+        }
+
         GameManager.Instance.registerBullet(bullet, bulletComp);
 
         const targetPos = target.node.worldPosition;

@@ -298,6 +298,160 @@ export const ACHIEVEMENT_LIST: AchievementData[] = [
         reward: { type: AchievementRewardType.GOLD, amount: 1000 },
         isHidden: true,
         sort: 24
+    },
+    {
+        id: "hero_mastery_zhaoyun",
+        name: "一身是胆",
+        desc: "赵云熟练度达到无双",
+        icon: "icon/ach_hero_zhaoyun",
+        category: AchievementType.HERO,
+        targetValue: 1,
+        reward: { type: AchievementRewardType.GOLD, amount: 500 },
+        isHidden: false,
+        sort: 25
+    },
+    {
+        id: "hero_mastery_guanyu",
+        name: "武圣降临",
+        desc: "关羽熟练度达到无双",
+        icon: "icon/ach_hero_guanyu",
+        category: AchievementType.HERO,
+        targetValue: 1,
+        reward: { type: AchievementRewardType.GOLD, amount: 500 },
+        isHidden: false,
+        sort: 26
+    },
+    {
+        id: "hero_mastery_zhangfei",
+        name: "万人敌",
+        desc: "张飞熟练度达到无双",
+        icon: "icon/ach_hero_zhangfei",
+        category: AchievementType.HERO,
+        targetValue: 1,
+        reward: { type: AchievementRewardType.GOLD, amount: 500 },
+        isHidden: false,
+        sort: 27
+    },
+    {
+        id: "hero_mastery_zhugeliang",
+        name: "神机妙算",
+        desc: "诸葛亮熟练度达到无双",
+        icon: "icon/ach_hero_zhugeliang",
+        category: AchievementType.HERO,
+        targetValue: 1,
+        reward: { type: AchievementRewardType.GOLD, amount: 500 },
+        isHidden: false,
+        sort: 28
+    },
+    {
+        id: "hero_mastery_lvbu",
+        name: "天下无双",
+        desc: "吕布熟练度达到无双",
+        icon: "icon/ach_hero_lvbu",
+        category: AchievementType.HERO,
+        targetValue: 1,
+        reward: { type: AchievementRewardType.GOLD, amount: 500 },
+        isHidden: false,
+        sort: 29
+    },
+    {
+        id: "hero_kill_zhaoyun_1000",
+        name: "龙胆之威",
+        desc: "使用赵云累计击杀 1000 个敌人",
+        icon: "icon/ach_hero_kill_01",
+        category: AchievementType.HERO,
+        targetValue: 1000,
+        reward: { type: AchievementRewardType.GOLD, amount: 600 },
+        isHidden: false,
+        sort: 30
+    },
+    {
+        id: "hero_kill_guanyu_1000",
+        name: "青龙偃月",
+        desc: "使用关羽累计击杀 1000 个敌人",
+        icon: "icon/ach_hero_kill_02",
+        category: AchievementType.HERO,
+        targetValue: 1000,
+        reward: { type: AchievementRewardType.GOLD, amount: 600 },
+        isHidden: false,
+        sort: 31
+    },
+    {
+        id: "hero_kill_zhangfei_1000",
+        name: "燕人咆哮",
+        desc: "使用张飞累计击杀 1000 个敌人",
+        icon: "icon/ach_hero_kill_03",
+        category: AchievementType.HERO,
+        targetValue: 1000,
+        reward: { type: AchievementRewardType.GOLD, amount: 600 },
+        isHidden: false,
+        sort: 32
+    },
+    {
+        id: "hero_kill_zhugeliang_1000",
+        name: "卧龙破阵",
+        desc: "使用诸葛亮累计击杀 1000 个敌人",
+        icon: "icon/ach_hero_kill_04",
+        category: AchievementType.HERO,
+        targetValue: 1000,
+        reward: { type: AchievementRewardType.GOLD, amount: 600 },
+        isHidden: false,
+        sort: 33
+    },
+    {
+        id: "hero_kill_lvbu_1000",
+        name: "飞将无双",
+        desc: "使用吕布累计击杀 1000 个敌人",
+        icon: "icon/ach_hero_kill_05",
+        category: AchievementType.HERO,
+        targetValue: 1000,
+        reward: { type: AchievementRewardType.GOLD, amount: 600 },
+        isHidden: false,
+        sort: 34
+    },
+    {
+        id: "hero_survive_20min",
+        name: "不死将军",
+        desc: "使用任意英雄单局存活 20 分钟",
+        icon: "icon/ach_hero_survive",
+        category: AchievementType.HERO,
+        targetValue: 1200,
+        reward: { type: AchievementRewardType.GOLD, amount: 800 },
+        isHidden: false,
+        sort: 35
+    },
+    {
+        id: "hero_game_50",
+        name: "身经百战",
+        desc: "使用英雄完成 50 场战斗",
+        icon: "icon/ach_hero_game",
+        category: AchievementType.HERO,
+        targetValue: 50,
+        reward: { type: AchievementRewardType.REVIVE, amount: 5 },
+        isHidden: false,
+        sort: 36
+    },
+    {
+        id: "hero_game_100",
+        name: "千锤百炼",
+        desc: "使用英雄完成 100 场战斗",
+        icon: "icon/ach_hero_game_02",
+        category: AchievementType.HERO,
+        targetValue: 100,
+        reward: { type: AchievementRewardType.GOLD, amount: 1500 },
+        isHidden: false,
+        sort: 37
+    },
+    {
+        id: "hero_skill_max",
+        name: "技能大师",
+        desc: "在战斗中把英雄技能升至满级",
+        icon: "icon/ach_hero_skill",
+        category: AchievementType.HERO,
+        targetValue: 1,
+        reward: { type: AchievementRewardType.GOLD, amount: 400 },
+        isHidden: false,
+        sort: 38
     }
 ];
 
